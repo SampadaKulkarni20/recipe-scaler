@@ -3,43 +3,65 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PortionPerfect 
-    Smart recipe scaling. No guesswork.</title>
+  <title>PortionPerfect </title>
+  <p class="tagline"> Smart recipe scaling. No guesswork.</p>
   <style>
-    :root { --bg:#FAF8F4; --card:#fff; --text:#222; --muted:#666; --border:#e7e7e7; --shadow: 0 10px 24px rgba(0,0,0,.06); }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); margin:0; }
+    :root{   --bg:#FAF8F4;   --card:#FFFFFF;   --text:#1A1A1A;   --muted:#6B6B6B;   --border:#ECE7E0;   --shadow: 0 18px 40px rgba(17,17,17,.08);   --radius: 18px; } --bg:#FAF8F4; --card:#fff; --text:#222; --muted:#666; --border:#e7e7e7; --shadow: 0 10px 24px rgba(0,0,0,.06); }
+    body{   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;   background: var(--bg);   color: var(--text);   margin:0;   -webkit-font-smoothing: antialiased;   -moz-osx-font-smoothing: grayscale; }
     .wrap { max-width: 980px; margin: 0 auto; padding: 16px; }
-    h1 { font-size: 20px; margin: 8px 0 2px; }
+    .tagline{
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.subline{
+  margin: 0 0 14px;
+  color: var(--muted);
+}
+    h1{   font-size: 26px;   margin: 6px 0 4px;   letter-spacing: .2px; }
     p { margin: 6px 0 12px; color: var(--muted); }
     .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
     @media (min-width: 880px) { .grid { grid-template-columns: 1fr 1fr; } }
-    .card { background: var(--card); border:1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); padding: 14px; }
-    textarea { width: 100%; min-height: 320px; resize: vertical; padding: 12px; border-radius: 12px; border:1px solid var(--border); font-size: 14px; line-height: 1.4; }
+    .card{   background: var(--card);   border: 1px solid var(--border);   border-radius: var(--radius);   box-shadow: var(--shadow);   padding: 16px; }
+    textarea{   width: 100%;   min-height: 340px;   resize: vertical;   padding: 14px;   border-radius: 16px;   border: 1px solid var(--border);   font-size: 14px;   line-height: 1.5;   outline: none; } textarea:focus{   border-color: #D8CFC2;   box-shadow: 0 0 0 4px rgba(194,109,79,.12); }
     .row { display:flex; flex-wrap:wrap; gap: 10px; align-items: end; margin: 10px 0 6px; }
     .field { display:flex; flex-direction:column; gap: 6px; }
     label { font-size: 12px; color: var(--muted); }
     input[type="number"] { width: 120px; padding: 10px; border-radius: 12px; border:1px solid var(--border); font-size: 14px; }
     .toggles { display:flex; gap: 14px; flex-wrap:wrap; }
     .toggle { display:flex; align-items:center; gap: 8px; font-size: 13px; color: var(--text); }
-    button {
+    button{
   padding: 12px 18px;
   border-radius: 16px;
   border: none;
   background: #1A1A1A;
   color: #fff;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  transition: 0.2s ease;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+  transition: transform .15s ease, opacity .15s ease;
   cursor: pointer;
 }
 
-button:hover {
-  opacity: 0.85;
+button:hover{
+  opacity: .9;
   transform: translateY(-1px);
 }
-    button.secondary { background: #f1f1f1; color:#111; border:1px solid var(--border); }
+
+button:active{
+  transform: translateY(0px);
+}
+
+button.secondary{
+  background: #FFFFFF;
+  color: #1A1A1A;
+  border: 1px solid var(--border);
+}
+button.secondary:hover{
+  background: #FBFAF8;
+}
     .small { font-size: 12px; color: var(--muted); }
-    .out { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; line-height: 1.45; background: #fcfcfc; border:1px solid var(--border); border-radius: 12px; padding: 12px; min-height: 320px; }
+    .out{   white-space: pre-wrap;   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;   font-size: 13px;   line-height: 1.55;   background: #FFFEFC;   border: 1px solid var(--border);   border-radius: 16px;   padding: 14px;   min-height: 340px; }
     .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
     .pill { display:inline-block; padding: 2px 8px; border-radius: 999px; border:1px solid var(--border); background:#fff; font-size: 12px; color: var(--muted); margin-right: 6px; }
   </style>
@@ -48,7 +70,7 @@ button:hover {
   <div class="wrap">
     <h1>PortionPerfect 
       Smart recipe scaling. No guesswork.</h1>
-    <p>Paste ingredients, set servings, and get scaled quantities. Handles fractions, ranges, and Indian kitchen units.</p>
+    <p class="subline">Paste ingredients. Set servings. Get perfect quantities — with Indian-friendly units.</p>
 
     <div class="row">
       <div class="field">
@@ -426,4 +448,5 @@ scaleAll();
 </script>
 </body>
 </html>
+
 
