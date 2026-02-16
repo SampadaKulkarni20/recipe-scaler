@@ -237,33 +237,36 @@
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>PortionPerfect 
-      Smart recipe scaling. No guesswork.</h1>
-    <p class="subline">Paste ingredients. Set servings. Get perfect quantities — with Indian-friendly units.</p>
+<div class="topbar">
+  <div class="brand">
+    <h1>PortionPerfect</h1>
+    <p>Smart recipe scaling. No guesswork.</p>
+  </div>
+  <div class="badge">Free • No login • Mobile-friendly</div>
+</div>
 
-    <div class="row">
-      <div class="field">
-        <label>Original servings</label>
-        <input id="origServ" type="number" value="10" min="1" step="1" />
-      </div>
-      <div class="field">
-        <label>Target servings</label>
-        <input id="targetServ" type="number" value="5" min="1" step="1" />
-      </div>
+<div class="panel">
+  <div class="field">
+    <label>Original servings</label>
+    <input id="origServ" type="number" value="10" min="1" step="1" />
+  </div>
 
-      <div class="toggles">
-        <label class="toggle"><input id="doConvert" type="checkbox" checked /> Convert units (tsp↔tbsp↔cup↔ml)</label>
-        <label class="toggle"><input id="doDensity" type="checkbox" checked /> Cup→grams when ingredient matches (limited list)</label>
-        <label class="toggle"><input id="doRound" type="checkbox" checked /> Kitchen rounding</label>
-      </div>
+  <div class="field">
+    <label>Target servings</label>
+    <input id="targetServ" type="number" value="5" min="1" step="1" />
+  </div>
 
-      <div style="display:flex; gap:10px; margin-left:auto;">
-        <button id="scaleBtn">Scale</button>
-        <button id="copyBtn" class="secondary">Copy output</button>
-      </div>
-    </div>
+  <div class="chips">
+    <label class="chip"><input id="doConvert" type="checkbox" checked /> Convert units</label>
+    <label class="chip"><input id="doDensity" type="checkbox" checked /> Density (cup→grams)</label>
+    <label class="chip"><input id="doRound" type="checkbox" checked /> Kitchen rounding</label>
+  </div>
 
+  <div class="actions">
+    <button id="scaleBtn">Scale</button>
+    <button id="copyBtn" class="secondary">Copy output</button>
+  </div>
+</div>
     <div class="grid">
       <div class="card">
         <div class="small">
@@ -618,6 +621,7 @@ scaleAll();
 </script>
 </body>
 </html>
+
 
 
 
