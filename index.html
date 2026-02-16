@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Recipe Scaler (Indian-friendly)</title>
+  <style>
+    :root { --bg:#fafafa; --card:#fff; --text:#222; --muted:#666; --border:#e7e7e7; --shadow: 0 10px 24px rgba(0,0,0,.06); }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); margin:0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 16px; }
+    h1 { font-size: 20px; margin: 8px 0 2px; }
+    p { margin: 6px 0 12px; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 880px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .card { background: var(--card); border:1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); padding: 14px; }
+    textarea { width: 100%; min-height: 320px; resize: vertical; padding: 12px; border-radius: 12px; border:1px solid var(--border); font-size: 14px; line-height: 1.4; }
+    .row { display:flex; flex-wrap:wrap; gap: 10px; align-items: end; margin: 10px 0 6px; }
+    .field { display:flex; flex-direction:column; gap: 6px; }
+    label { font-size: 12px; color: var(--muted); }
+    input[type="number"] { width: 120px; padding: 10px; border-radius: 12px; border:1px solid var(--border); font-size: 14px; }
+    .toggles { display:flex; gap: 14px; flex-wrap:wrap; }
+    .toggle { display:flex; align-items:center; gap: 8px; font-size: 13px; color: var(--text); }
+    button { padding: 10px 14px; border-radius: 12px; border: 0; background: #111; color: #fff; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #f1f1f1; color:#111; border:1px solid var(--border); }
+    .small { font-size: 12px; color: var(--muted); }
+    .out { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; line-height: 1.45; background: #fcfcfc; border:1px solid var(--border); border-radius: 12px; padding: 12px; min-height: 320px; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .pill { display:inline-block; padding: 2px 8px; border-radius: 999px; border:1px solid var(--border); background:#fff; font-size: 12px; color: var(--muted); margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Recipe Scaler (simple + Indian-friendly)</h1>
+    <p>Paste ingredients, set servings, and get scaled quantities. Handles fractions, ranges, and Indian kitchen units.</p>
+
+    <div class="row">
+      <div class="field">
+        <label>Original servings</label>
+        <input id="origServ" type="number" value="10" min="1" step="1" />
+      </div>
+      <div class="field">
+        <label>Target servings</label>
+        <input id="targetServ" type="number" value="5" min="1" step="1" />
+      </div>
+
+      <div class="toggles">
+        <label class="toggle"><input id="doConvert" type="checkbox" checked /> Convert units (tsp↔tbsp↔cup↔ml)</label>
+        <label class="toggle"><input id="doDensity" type="checkbox" checked /> Cup→grams when ingredient matches (limited list)</label>
+        <label class="toggle"><input id="doRound" type="checkbox" checked /> Kitchen rounding</label>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-left:auto;">
+        <button id="scaleBtn">Scale</button>
+        <button id="copyBtn" class="secondary">Copy output</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="small">
+          <span class="pill">Tip</span> One ingredient per line is best. Examples: “1 1/2 cup atta”, “2–3 tsp chilli”, “Salt to taste”, “1 katori curd”.
+        </div>
+        <textarea id="inText">
+1 1/2 cup atta (whole wheat flour)
+3/4 cup water
+2–3 tsp red chilli powder
+1 tbsp ghee
+1 katori curd
+Salt to taste
+Oil for frying
+        </textarea>
+      </div>
+
+      <div class="card">
+        <div class="small"><span class="pill">Output</span>Scaled ingredients</div>
+        <div id="out" class="out"></div>
+        <div class="hint">Note: “to taste / as needed / for frying” stays unchanged. Density conversion uses a small built-in table you can expand.</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/** =========================
+ *  1) Customize these tables
+ *  ========================= */
+
+// Common unicode fractions mapping
+const UNICODE_FRACS = {
+  "½": "1/2", "⅓": "1/3", "⅔": "2/3", "¼": "1/4", "¾": "3/4",
+  "⅕": "1/5", "⅖": "2/5", "⅗": "3/5", "⅘": "4/5",
+  "⅙": "1/6", "⅚": "5/6",
+  "⅛": "1/8", "⅜": "3/8", "⅝": "5/8", "⅞": "7/8",
+};
+
+// Unit aliases → canonical unit
+const UNIT_ALIASES = new Map([
+  ["teaspoon","tsp"],["teaspoons","tsp"],["tsp","tsp"],["t","tsp"],
+  ["tablespoon","tbsp"],["tablespoons","tbsp"],["tbsp","tbsp"],["tbl","tbsp"],["tb","tbsp"],
+  ["cup","cup"],["cups","cup"],
+  ["ml","ml"],["milliliter","ml"],["milliliters","ml"],["millilitre","ml"],["millilitres","ml"],
+  ["l","l"],["liter","l"],["liters","l"],["litre","l"],["litres","l"],
+  ["g","g"],["gram","g"],["grams","g"],
+  ["kg","kg"],["kilogram","kg"],["kilograms","kg"],
+  ["oz","oz"],["ounce","oz"],["ounces","oz"],
+  ["lb","lb"],["pound","lb"],["pounds","lb"],
+
+  // Indian/common cooking units
+  ["katori","katori"],
+  ["glass","glass"],
+  ["pinch","pinch"],["pinches","pinch"],
+  ["handful","handful"],["handfuls","handful"],
+  ["clove","clove"],["cloves","clove"],
+  ["piece","piece"],["pieces","piece"],
+]);
+
+// Approx “volume” conversions (very rough for katori/glass/handful/pinch — tweak if you want)
+const VOLUME_TO_ML = {
+  tsp: 5,
+  tbsp: 15,
+  cup: 240,
+  katori: 150,  // often 150–200ml; pick your standard
+  glass: 250,
+  pinch: 0.3,
+  handful: 40,  // depends hugely — treat as heuristic
+};
+
+// Density table for cup→grams (approx). You can expand this list.
+// Keys are ingredient "match tokens" found in the ingredient text.
+const CUP_TO_GRAMS = [
+  { match: /atta|wheat\s*flour|whole\s*wheat\s*flour/i, gPerCupMin: 120, gPerCupMax: 150 },
+  { match: /basmati|rice(?!\s*flour)/i, gPerCupMin: 175, gPerCupMax: 205 },
+  { match: /poha/i, gPerCupMin: 140, gPerCupMax: 140 },
+];
+
+// Phrases we do NOT scale (kept as-is)
+const NON_SCALING_PHRASES = [
+  /to\s*taste/i,
+  /as\s*needed/i,
+  /as\s*required/i,
+  /for\s*frying/i,
+  /for\s*greasing/i,
+  /as\s*per\s*taste/i,
+  /optional/i,
+  /pinch\s*of\s*salt/i, // example: keep if you prefer (remove if you want it scaled)
+];
+
+/** =========================
+ *  2) Parsing + Scaling logic
+ *  ========================= */
+
+function normalizeLine(line) {
+  let s = line.trim();
+  // Replace unicode fractions with ascii like "1/2"
+  for (const [u, rep] of Object.entries(UNICODE_FRACS)) {
+    s = s.replaceAll(u, rep);
+  }
+  // Normalize en-dash/em-dash to hyphen for ranges
+  s = s.replace(/[–—]/g, "-");
+  // Collapse multiple spaces
+  s = s.replace(/\s+/g, " ");
+  return s;
+}
+
+function hasNonScalingPhrase(line) {
+  return NON_SCALING_PHRASES.some(rx => rx.test(line));
+}
+
+function parseNumberToken(token) {
+  // Handles "1", "3/4", "1 1/2" (this function expects a single token; mixed handled elsewhere)
+  if (/^\d+(\.\d+)?$/.test(token)) return parseFloat(token);
+  if (/^\d+\/\d+$/.test(token)) {
+    const [a,b] = token.split("/").map(Number);
+    if (b === 0) return NaN;
+    return a / b;
+  }
+  return NaN;
+}
+
+function parseQuantityStart(line) {
+  // Attempt to parse quantity at the very start of the line:
+  // - "1 1/2"
+  // - "3/4"
+  // - "2-3"
+  // - "2 - 3"
+  // - "1.5"
+  // Returns { qtyType: "single"|"range"|null, a, b, rest }
+  const s = line.trim();
+
+  // Range like "2-3" or "2 - 3" or "1 1/2-2"
+  // We'll capture up to first space after the quantity block.
+  // Strategy: pull first "chunk" that looks like qty, possibly containing spaces.
+  // We'll scan tokens until it no longer looks numeric/fraction/range separator.
+  const tokens = s.split(" ");
+  if (tokens.length === 0) return { qtyType: null, rest: s };
+
+  // Build a prefix of tokens that could represent qty
+  // allow: digits, fractions, decimals, hyphen
+  let qtyTokens = [];
+  for (let i=0; i<Math.min(tokens.length, 3); i++) { // usually qty fits within first 3 tokens
+    const t = tokens[i];
+    if (/^\d+(\.\d+)?$/.test(t) || /^\d+\/\d+$/.test(t) || t === "-" || /^\d+(\.\d+)?-\d+(\.\d+)?$/.test(t) || /^\d+\/\d+-\d+\/\d+$/.test(t) ) {
+      qtyTokens.push(t);
+    } else {
+      // mixed number like "1" "1/2"
+      if (i===1 && /^\d+$/.test(tokens[0]) && /^\d+\/\d+$/.test(tokens[1])) qtyTokens.push(t);
+      else break;
+    }
+  }
+  if (qtyTokens.length === 0) return { qtyType: null, rest: s };
+
+  // Join qtyTokens; handle spaced range "2 - 3"
+  let qtyStr = qtyTokens.join(" ");
+  // If starts with something like "2 - 3", normalize to "2-3"
+  qtyStr = qtyStr.replace(/\s*-\s*/g, "-");
+
+  // Mixed number "1 1/2" not range
+  if (/^\d+\s+\d+\/\d+$/.test(qtyTokens.join(" "))) {
+    const [whole, frac] = qtyTokens.join(" ").split(" ");
+    const val = parseInt(whole,10) + parseNumberToken(frac);
+    const rest = s.slice((whole.length + 1 + frac.length)).trim();
+    return { qtyType: "single", a: val, rest };
+  }
+
+  // Simple single token range like "2-3"
+  if (/^[\d\/\.]+-[\d\/\.]+$/.test(qtyStr)) {
+    const [left, right] = qtyStr.split("-");
+    const a = parseNumberToken(left);
+    const b = parseNumberToken(right);
+    if (Number.isFinite(a) && Number.isFinite(b)) {
+      const rest = s.slice(qtyTokens.join(" ").length).trim();
+      return { qtyType: "range", a, b, rest };
+    }
+  }
+
+  // Single number or single fraction
+  const singleToken = qtyTokens[0];
+  let val = parseNumberToken(singleToken);
+  if (Number.isFinite(val)) {
+    const rest = s.slice(singleToken.length).trim();
+    return { qtyType: "single", a: val, rest };
+  }
+
+  return { qtyType: null, rest: s };
+}
+
+function parseUnit(rest) {
+  // Unit is usually the first word after qty; sometimes like "(14-oz)" etc.
+  // We'll grab the first token that matches UNIT_ALIASES after stripping punctuation.
+  const rawTokens = rest.split(" ");
+  if (rawTokens.length === 0) return { unit: null, afterUnit: rest };
+
+  // Skip bracket-only tokens like "(14-oz)" by treating as part of description, not unit.
+  // But if token contains known unit exactly (like "oz"), we can catch it.
+  for (let i=0; i<Math.min(rawTokens.length, 3); i++) {
+    const clean = rawTokens[i].toLowerCase().replace(/^[\(\[\{"]+|[\)\]\}":,\.]+$/g, "");
+    if (UNIT_ALIASES.has(clean)) {
+      const unit = UNIT_ALIASES.get(clean);
+      const afterUnit = rawTokens.slice(i+1).join(" ").trim();
+      return { unit, afterUnit };
+    }
+  }
+  return { unit: null, afterUnit: rest };
+}
+
+function scaleValue(val, factor) {
+  return val * factor;
+}
+
+function kitchenRound(val) {
+  // Friendly rounding:
+  // < 1 : round to nearest 0.25
+  // 1–10: round to nearest 0.5
+  // >10 : round to nearest 1
+  if (!Number.isFinite(val)) return val;
+  let step = 1;
+  if (val < 1) step = 0.25;
+  else if (val <= 10) step = 0.5;
+  else step = 1;
+  return Math.round(val / step) * step;
+}
+
+function formatNumber(val) {
+  // show integers clean; else up to 2 decimals but trim trailing zeros
+  if (!Number.isFinite(val)) return "";
+  const isInt = Math.abs(val - Math.round(val)) < 1e-9;
+  if (isInt) return String(Math.round(val));
+  return String(val.toFixed(2)).replace(/\.?0+$/,"");
+}
+
+function maybeConvertUnits(qty, unit, ingredientText, doConvert, doDensity) {
+  // Returns { qtyStr, unitStr, extraStr }
+  if (!doConvert || !unit) return { qtyStr: formatNumber(qty), unitStr: unit, extraStr: "" };
+
+  // Convert between tsp/tbsp/cup/ml/l where possible
+  if (VOLUME_TO_ML[unit]) {
+    const ml = qty * VOLUME_TO_ML[unit];
+
+    // Prefer ml for small/medium volumes, l for large
+    if (ml >= 1000) {
+      const l = ml / 1000;
+      return { qtyStr: formatNumber(l), unitStr: "l", extraStr: ` (~${formatNumber(ml)} ml)` };
+    }
+    // If tsp/tbsp/cup stay, but also show ml
+    return { qtyStr: formatNumber(qty), unitStr: unit, extraStr: ` (~${formatNumber(ml)} ml)` };
+  }
+
+  // If unit is ml, also show tbsp/tsp approx
+  if (unit === "ml") {
+    const tbsp = qty / VOLUME_TO_ML.tbsp;
+    const tsp = qty / VOLUME_TO_ML.tsp;
+    let extra = "";
+    if (tbsp >= 1) extra = ` (~${formatNumber(tbsp)} tbsp)`;
+    else extra = ` (~${formatNumber(tsp)} tsp)`;
+    return { qtyStr: formatNumber(qty), unitStr: unit, extraStr: extra };
+  }
+
+  // If unit is cup and density conversion enabled, try grams
+  if (doDensity && unit === "cup") {
+  const match = CUP_TO_GRAMS.find(x => x.match.test(ingredientText));
+  if (match) {
+    const gMin = qty * match.gPerCupMin;
+    const gMax = qty * match.gPerCupMax;
+
+    const gramsStr =
+      Math.abs(gMin - gMax) < 1e-9
+        ? `${formatNumber(gMin)} g`
+        : `${formatNumber(gMin)}–${formatNumber(gMax)} g`;
+
+    return { qtyStr: formatNumber(qty), unitStr: unit, extraStr: ` (~${gramsStr})` };
+  }
+}
+  return { qtyStr: formatNumber(qty), unitStr: unit, extraStr: "" };
+}
+
+function scaleLine(line, factor, opts) {
+  const raw = line;
+  const s = normalizeLine(line);
+  if (!s) return "";
+
+  // Keep as-is if clearly non-scalable
+  if (hasNonScalingPhrase(s)) return raw;
+
+  const q = parseQuantityStart(s);
+  if (!q.qtyType) return raw; // no quantity detected
+
+  const { unit, afterUnit } = parseUnit(q.rest);
+  const ingredientText = (unit ? afterUnit : q.rest);
+
+  const doRound = opts.doRound;
+
+  if (q.qtyType === "single") {
+    let newQty = scaleValue(q.a, factor);
+    if (doRound) newQty = kitchenRound(newQty);
+    const conv = maybeConvertUnits(newQty, unit, ingredientText, opts.doConvert, opts.doDensity);
+    const unitPart = unit ? ` ${conv.unitStr}` : "";
+    const tail = unit ? afterUnit : q.rest;
+    return `${conv.qtyStr}${unitPart} ${tail}`.trim() + (conv.extraStr || "");
+  }
+
+  if (q.qtyType === "range") {
+    let a = scaleValue(q.a, factor);
+    let b = scaleValue(q.b, factor);
+    if (doRound) { a = kitchenRound(a); b = kitchenRound(b); }
+    const aStr = formatNumber(a), bStr = formatNumber(b);
+    const tail = unit ? afterUnit : q.rest;
+    // For ranges, show ml approx if possible (using midpoint)
+    let extra = "";
+    if (opts.doConvert && unit && VOLUME_TO_ML[unit]) {
+      const mid = (a + b) / 2;
+      const ml = mid * VOLUME_TO_ML[unit];
+      extra = ml ? ` (~${formatNumber(ml)} ml mid)` : "";
+    }
+    const unitPart = unit ? ` ${unit}` : "";
+    return `${aStr}–${bStr}${unitPart} ${tail}`.trim() + extra;
+  }
+
+  return raw;
+}
+
+function scaleAll() {
+  const orig = Number(document.getElementById("origServ").value);
+  const target = Number(document.getElementById("targetServ").value);
+  const factor = target / orig;
+
+  const opts = {
+    doConvert: document.getElementById("doConvert").checked,
+    doDensity: document.getElementById("doDensity").checked,
+    doRound: document.getElementById("doRound").checked,
+  };
+
+  const input = document.getElementById("inText").value.split("\n");
+  const outLines = input.map(line => scaleLine(line, factor, opts)).filter(x => x !== "");
+  document.getElementById("out").textContent = outLines.join("\n");
+}
+
+document.getElementById("scaleBtn").addEventListener("click", scaleAll);
+document.getElementById("copyBtn").addEventListener("click", async () => {
+  const text = document.getElementById("out").textContent || "";
+  try {
+    await navigator.clipboard.writeText(text);
+    alert("Copied!");
+  } catch {
+    alert("Copy failed (browser permission). You can select + copy manually.");
+  }
+});
+
+// Initial render
+scaleAll();
+</script>
+</body>
+</html>
